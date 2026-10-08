@@ -23,9 +23,9 @@ BarWidget {
     if (!statusProc.running) statusProc.running = true
   }
 
-  function setMode(mode) {
+  function setMode(mode, period) {
     if (actionProc.running) return
-    actionProc.command = [root.helper, "set", mode]
+    actionProc.command = period ? [root.helper, "set", mode, period] : [root.helper, "set", mode]
     actionProc.running = true
   }
 
@@ -52,7 +52,21 @@ BarWidget {
     var period = schedulePeriod()
     if (!force && period === lastSchedulePeriod) return
     lastSchedulePeriod = period
-    setMode(period === "night" ? "low" : "off")
+    setMode(period === "night" ? "low" : "off", period)
+  }
+
+  // After a shell restart (e.g. logout/login) keep the last level instead of
+  // forcing the schedule. The schedule is only applied at startup when the
+  // day/night period changed while the shell was not running, or when nothing
+  // was saved yet.
+  function restoreSaved(mode, savedPeriod) {
+    var period = schedulePeriod()
+    if (scheduleEnabled && (mode === "-" || savedPeriod !== period)) {
+      applySchedule(true)
+      return
+    }
+    if (scheduleEnabled) lastSchedulePeriod = period
+    if (mode === "off" || mode === "low" || mode === "high") setMode(mode)
   }
 
   function persistSettings(values) {
@@ -112,7 +126,7 @@ BarWidget {
 
   Timer { interval: 5000; running: true; repeat: true; onTriggered: root.refresh() }
   Timer { interval: 30000; running: true; repeat: true; onTriggered: root.applySchedule(false) }
-  Timer { id: scheduleDelay; interval: 1000; repeat: false; onTriggered: root.applySchedule(true) }
+  Timer { id: scheduleDelay; interval: 1000; repeat: false; onTriggered: savedProc.running = true }
 
   Process {
     id: statusProc
@@ -126,6 +140,18 @@ BarWidget {
           root.maximum = Number(values[1]) || 2
           root.deviceName = values.slice(2).join(" ")
         }
+      }
+    }
+  }
+
+  Process {
+    id: savedProc
+    command: [root.helper, "saved"]
+    stdout: StdioCollector {
+      waitForEnd: true
+      onStreamFinished: {
+        var values = text.trim().split(/\s+/)
+        root.restoreSaved(values[0] || "-", values[1] || "-")
       }
     }
   }

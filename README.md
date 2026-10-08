@@ -90,7 +90,9 @@ omarchy bar set io.github.alexanderpuschkinberlin.keyboard-backlight nightStartH
 omarchy bar set io.github.alexanderpuschkinberlin.keyboard-backlight dayStartHour 7 --json
 ```
 
-The plugin evaluates transitions inside `omarchy-shell`. It applies the relevant mode when enabled or loaded and then only when the day/night period changes, so manual adjustments are not repeatedly overwritten.
+The plugin evaluates transitions inside `omarchy-shell`. It applies the relevant mode when the schedule is enabled and then only when the day/night period changes, so manual adjustments are not repeatedly overwritten.
+
+The last mode and the schedule period it belongs to are saved in `~/.local/state/omarchy-keyboard-backlight/state`. After a logout/login (shell restart) the saved mode is restored; the schedule is only applied at startup if the period changed while the shell was not running, or if nothing was saved yet.
 
 ## Privacy and security
 
@@ -100,7 +102,7 @@ The plugin:
 - invokes only its bundled helper and the installed `brightnessctl` command;
 - does not use the network;
 - does not use `sudo` or `pkexec`;
-- does not install services or modify files outside Omarchy's normal inline widget settings.
+- does not install services or modify files outside Omarchy's normal inline widget settings and its own state file (`~/.local/state/omarchy-keyboard-backlight/state`).
 
 Like every Omarchy shell plugin, its QML runs unsandboxed inside `omarchy-shell`. Review the source before enabling it.
 

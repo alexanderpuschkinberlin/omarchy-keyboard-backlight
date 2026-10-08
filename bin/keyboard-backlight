@@ -14,6 +14,16 @@ if [[ -z $device ]]; then
   exit 1
 fi
 
+state_file=${XDG_STATE_HOME:-$HOME/.local/state}/omarchy-keyboard-backlight/state
+
+# State file holds the last requested mode and the schedule period it was
+# applied for, so a shell restart (logout/login) can restore it.
+saved_value() {
+  local value=""
+  [[ -r $state_file ]] && value=$(sed -n "s/^$1=//p" "$state_file" | head -n1)
+  printf '%s' "${value:--}"
+}
+
 current=$(brightnessctl -d "$device" get)
 maximum=$(brightnessctl -d "$device" max)
 
@@ -21,17 +31,25 @@ case ${1:-status} in
   status)
     printf '%s %s %s\n' "$current" "$maximum" "$device"
     ;;
+  saved)
+    printf '%s %s\n' "$(saved_value mode)" "$(saved_value period)"
+    ;;
   set)
     case ${2:-} in
       off) target=0 ;;
       low) target=1 ;;
       high) target=$maximum ;;
-      *) echo "Usage: ${0##*/} [status|set {off|low|high}]" >&2; exit 2 ;;
+      *) echo "Usage: ${0##*/} [status|saved|set {off|low|high} [period]]" >&2; exit 2 ;;
     esac
     brightnessctl -d "$device" set "$target" >/dev/null
+    # An optional third argument records the schedule period; manual changes
+    # keep the previously recorded one.
+    period=${3:-$(saved_value period)}
+    mkdir -p "${state_file%/*}"
+    printf 'mode=%s\nperiod=%s\n' "$2" "$period" > "$state_file"
     ;;
   *)
-    echo "Usage: ${0##*/} [status|set {off|low|high}]" >&2
+    echo "Usage: ${0##*/} [status|saved|set {off|low|high} [period]]" >&2
     exit 2
     ;;
 esac
